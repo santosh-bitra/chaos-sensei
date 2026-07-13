@@ -1,14 +1,19 @@
 """Kubernetes provider implementation."""
 
+import copy
 import logging
 from pathlib import Path
 from typing import Any, Dict, List
 
-from chaos_sensei.core.exceptions import InjectionError, ProviderNotDetectedError
+import yaml
+
+from chaos_sensei.core.exceptions import InjectionError, ProviderNotDetectedError, RollbackError
 from chaos_sensei.providers.base import Provider
 from chaos_sensei.tools.kubectl import Kubectl
 
 logger = logging.getLogger(__name__)
+
+SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 
 
 class KubernetesProvider(Provider):
@@ -78,9 +83,58 @@ class KubernetesProvider(Provider):
             logger.error(f"Discovery failed: {e}")
             raise ProviderNotDetectedError(f"Failed to discover Kubernetes resources: {e}")
 
+    # Stub entries for scenarios whose injector isn't implemented yet
+    # (see providers/kubernetes/scenarios/ for the full YAML-defined ones).
+    # These stay listable (so `plan` shows the roadmap) but `start` on them
+    # will fail loudly at inject() rather than silently doing nothing.
+    _UNIMPLEMENTED_STUBS = [
+        {
+            "id": "k8s-pod-crash",
+            "title": "Kubernetes Pod crash loop",
+            "description": "Pod crash-loops due to missing config",
+            "difficulty": "beginner",
+            "blast_radius": "single-pod",
+            "provider": "kubernetes",
+            "category": "availability",
+            "tags": ["pod", "crash", "availability"],
+            "implemented": False,
+        },
+        {
+            "id": "k8s-configmap-missing-key",
+            "title": "ConfigMap missing key",
+            "description": "Application can't find required config key",
+            "difficulty": "intermediate",
+            "blast_radius": "single-deployment",
+            "provider": "kubernetes",
+            "category": "configuration",
+            "tags": ["config", "configmap"],
+            "implemented": False,
+        },
+    ]
+
+    def _load_scenario_files(self) -> List[Dict[str, Any]]:
+        """Load every fully-defined scenario from scenarios/*.yaml."""
+        scenarios = []
+        if not SCENARIOS_DIR.exists():
+            return scenarios
+
+        for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
+            try:
+                with open(path) as f:
+                    data = yaml.safe_load(f)
+                if data and data.get("id"):
+                    data.setdefault("provider", self.name)
+                    data["implemented"] = True
+                    scenarios.append(data)
+            except Exception as e:
+                logger.warning(f"Failed to load scenario file {path}: {e}")
+
+        return scenarios
+
     def list_scenarios(self, inventory: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        List available scenarios.
+        List available scenarios: fully-defined ones loaded from YAML first,
+        followed by not-yet-implemented stubs so `plan` still shows the roadmap.
 
         Args:
             inventory: Discovered resources
@@ -88,39 +142,9 @@ class KubernetesProvider(Provider):
         Returns:
             List of scenarios
         """
-        # For MVP, provide basic scenarios
-        scenarios = [
-            {
-                "id": "k8s-service-selector-mismatch",
-                "title": "Kubernetes Service selector mismatch",
-                "description": "Service no longer routes to intended pods",
-                "difficulty": "beginner",
-                "blast_radius": "single-service",
-                "provider": self.name,
-                "category": "networking",
-                "tags": ["service", "networking", "traffic"],
-            },
-            {
-                "id": "k8s-pod-crash",
-                "title": "Kubernetes Pod crash loop",
-                "description": "Pod crash-loops due to missing config",
-                "difficulty": "beginner",
-                "blast_radius": "single-pod",
-                "provider": self.name,
-                "category": "availability",
-                "tags": ["pod", "crash", "availability"],
-            },
-            {
-                "id": "k8s-configmap-missing-key",
-                "title": "ConfigMap missing key",
-                "description": "Application can't find required config key",
-                "difficulty": "intermediate",
-                "blast_radius": "single-deployment",
-                "provider": self.name,
-                "category": "configuration",
-                "tags": ["config", "configmap"],
-            },
-        ]
+        scenarios = self._load_scenario_files()
+        loaded_ids = {s["id"] for s in scenarios}
+        scenarios.extend(s for s in self._UNIMPLEMENTED_STUBS if s["id"] not in loaded_ids)
 
         logger.info(f"Available scenarios: {len(scenarios)}")
         return scenarios
@@ -262,14 +286,24 @@ class KubernetesProvider(Provider):
         try:
             if kind == "service":
                 service = self.kubectl.get_service(name, namespace)
-                # Check if service has endpoints
-                endpoints = service.get("status", {}).get("loadBalancer", {}).get("ingress", [])
-                has_endpoints = len(service.get("spec", {}).get("selector", {})) > 0
+                selector = service.get("spec", {}).get("selector", {}) or {}
+                has_selector = len(selector) > 0
 
-                return {
-                    "fixed": has_endpoints,
-                    "details": f"Service has selector: {has_endpoints}",
-                }
+                expected_selector = scenario.get("success_criteria", {}).get("expected_selector")
+                if expected_selector:
+                    fixed = selector == expected_selector
+                    details = (
+                        f"Selector is {selector}, expected {expected_selector}"
+                        if not fixed
+                        else "Selector matches expected value"
+                    )
+                else:
+                    # No known-good selector to compare against (unimplemented
+                    # scenario stub) - fall back to a weaker existence check.
+                    fixed = has_selector
+                    details = f"Service has selector: {has_selector}"
+
+                return {"fixed": fixed, "details": details}
             elif kind == "deployment":
                 status = self.kubectl.rollout_status("deployment", name, namespace, timeout="30s")
                 fixed = "successfully rolled out" in status.lower()
@@ -288,6 +322,14 @@ class KubernetesProvider(Provider):
         """
         Restore original state.
 
+        Prefers a field-level JSON Patch replace when the fault type is
+        known to have mutated exactly one field (mirrors the injector) -
+        this sidesteps kubectl apply's merge semantics, which silently
+        fail to remove keys a fault added to a map field like a Service's
+        spec.selector (see _strip_server_fields for the related
+        resourceVersion issue). Falls back to a whole-object apply for any
+        fault type without a dedicated field-level rollback.
+
         Args:
             scenario: Scenario configuration
             snapshot: Snapshot from snapshot()
@@ -301,7 +343,19 @@ class KubernetesProvider(Provider):
                 raise ValueError("No snapshot data available for rollback")
 
             logger.info(f"Rolling back {snapshot['kind']}/{snapshot['name']}")
-            self.kubectl.apply_json(obj)
+            fault_type = scenario.get("fault", {}).get("type")
+
+            if fault_type == "service_selector_mismatch":
+                original_selector = obj.get("spec", {}).get("selector", {})
+                self.kubectl.replace_field(
+                    kind=snapshot["kind"],
+                    name=snapshot["name"],
+                    namespace=snapshot["namespace"],
+                    path="/spec/selector",
+                    value=original_selector,
+                )
+            else:
+                self.kubectl.apply_json(self._strip_server_fields(obj))
 
             return {
                 "rolled_back": True,
@@ -309,28 +363,50 @@ class KubernetesProvider(Provider):
             }
         except Exception as e:
             logger.error(f"Rollback failed: {e}")
-            raise Exception(f"Rollback failed: {e}")
+            raise RollbackError(f"Rollback failed: {e}")
+
+    @staticmethod
+    def _strip_server_fields(obj: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Drop server-managed fields from a captured object before re-applying it.
+
+        A snapshot's metadata.resourceVersion reflects the object's state at
+        snapshot time. By the time rollback runs, the object has always been
+        modified at least once (the injection itself), so resourceVersion is
+        stale - kubectl apply then rejects it with a 409 Conflict, treating
+        it as a concurrent edit rather than an intentional restore. uid,
+        creationTimestamp, generation, and status are similarly server-owned
+        and must not be sent back on a write.
+        """
+        clean = copy.deepcopy(obj)
+        metadata = clean.get("metadata", {})
+        for field in ("resourceVersion", "uid", "creationTimestamp", "generation", "selfLink", "managedFields"):
+            metadata.pop(field, None)
+        clean.pop("status", None)
+        return clean
 
     def _inject_service_selector_mismatch(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
-        """Inject service selector mismatch."""
+        """Inject service selector mismatch.
+
+        Uses a JSON Patch replace (not a merge patch) so the selector is
+        fully overwritten with the broken value - a merge patch would only
+        add the broken key alongside the real ones, which still breaks
+        routing (selectors AND their keys) but leaves a misleading
+        half-broken object behind instead of a clean single-cause fault.
+        """
         target = scenario.get("target", {})
         namespace = target.get("namespace", "default")
         service = target.get("name")
 
-        patch = {
-            "spec": {
-                "selector": {
-                    "app": "chaos-sensei-broken-selector-" + service,
-                }
-            }
-        }
+        broken_selector = {"app": "chaos-sensei-broken-selector-" + service}
 
         try:
-            self.kubectl.patch_json(
+            self.kubectl.replace_field(
                 kind="service",
                 name=service,
                 namespace=namespace,
-                patch=patch,
+                path="/spec/selector",
+                value=broken_selector,
             )
 
             return {

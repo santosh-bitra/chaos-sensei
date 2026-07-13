@@ -131,6 +131,45 @@ class Kubectl:
             ]
         )
 
+    def replace_field(
+        self, kind: str, name: str, namespace: str, path: str, value: Any
+    ) -> str:
+        """
+        Atomically replace a single field via RFC 6902 JSON Patch.
+
+        Unlike patch_json() (JSON Merge Patch, --type=merge) or apply_json()
+        (kubectl apply), a JSON Patch "replace" op overwrites the value at
+        `path` in full - it does not merge map/object values, so it's the
+        right tool whenever a field (e.g. a Service's spec.selector) must
+        end up exactly matching a desired value, with no leftover keys from
+        whatever was there before.
+
+        Args:
+            kind: Resource kind (e.g., 'service')
+            name: Resource name
+            namespace: Kubernetes namespace
+            path: RFC 6901 JSON Pointer (e.g. '/spec/selector')
+            value: Replacement value
+
+        Returns:
+            Command output
+        """
+        patch = json.dumps([{"op": "replace", "path": path, "value": value}])
+        logger.info(f"Replacing {path} on {kind}/{name} in {namespace} with: {patch}")
+
+        return self.run(
+            [
+                "patch",
+                kind,
+                name,
+                "-n",
+                namespace,
+                "--type=json",
+                "-p",
+                patch,
+            ]
+        )
+
     def apply_json(self, obj: Dict[str, Any]) -> str:
         """
         Apply a Kubernetes resource from JSON.
