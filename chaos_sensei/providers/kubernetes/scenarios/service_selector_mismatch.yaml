@@ -1,0 +1,94 @@
+# Example scenario: Service Selector Mismatch
+# This is a reference scenario showing the YAML structure for training scenarios.
+
+id: k8s-service-selector-mismatch
+title: Kubernetes Service Selector Mismatch
+description: A Kubernetes Service is no longer routing traffic to the correct pods due to a selector mismatch.
+
+category: networking
+difficulty: beginner
+blast_radius: single-service
+tags:
+  - service
+  - networking
+  - traffic
+  - labels
+
+# What the scenario targets
+target:
+  kind: service
+  name: checkout
+  namespace: apps
+
+# What kind of failure is injected
+fault:
+  type: service_selector_mismatch
+  description: Modify the Service selector so it no longer matches pod labels
+
+# Symptoms the user will observe
+visible_symptoms:
+  - "Checkout API returns 503 Service Unavailable"
+  - "kubectl get endpoints shows 0 ready addresses"
+  - "Pods appear healthy in `kubectl get pods`"
+  - "Service still exists and has selector defined"
+
+# The root cause (revealed after hints run out)
+root_cause: |
+  The Service selector was changed to label selector {"app": "chaos-sensei-broken-selector-checkout"}
+  which doesn't match any pods. The original selector should be {"app": "checkout"}.
+
+# Progressive hints
+hints:
+  - "Check if the service has any active endpoints. Use `kubectl get endpoints`."
+  - "Compare the service selector with the pod labels. Use `kubectl describe svc checkout` and `kubectl get pods --show-labels`."
+  - "The service selector needs to match the labels on the pods. Check what labels the checkout pods have."
+
+# User's debugging path for verification
+ideal_path:
+  - "Check application health: curl the endpoint or check monitoring"
+  - "Check pod status: `kubectl get pods -n apps`"
+  - "Check service status: `kubectl describe svc checkout -n apps`"
+  - "Check endpoints: `kubectl get endpoints -n apps`"
+  - "Notice 0 ready addresses in endpoints"
+  - "Compare service selector with pod labels"
+  - "Patch the service selector back to original labels"
+  - "Verify endpoints now show ready addresses"
+
+# How to verify the user fixed the issue
+success_criteria:
+  kind: service
+  name: checkout
+  namespace: apps
+  should_have_selector: true
+  should_have_endpoints: true
+  expected_selector:
+    app: checkout
+
+# Rollback strategy
+rollback:
+  strategy: restore_snapshot
+  description: "Service manifest will be restored from snapshot to original state"
+
+# Learning objectives
+learning_objectives:
+  - "Understanding how Kubernetes Services use label selectors"
+  - "Debugging service connectivity issues"
+  - "Using kubectl to inspect service and endpoint status"
+  - "Relationship between Service selectors and pod labels"
+
+# Resources for learning more
+references:
+  - "https://kubernetes.io/docs/concepts/services-networking/service/"
+  - "https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/"
+
+# Notes for instructors
+instructor_notes: |
+  This is an excellent beginner scenario that teaches the fundamental concept of Kubernetes service routing.
+
+  Common debugging mistakes:
+  - Only checking pod status (pods appear healthy but service can't reach them)
+  - Not understanding label selectors vs. actual routing
+  - Not using 'kubectl get endpoints' to verify connectivity
+
+  Key learning: Services use labels to route traffic. If labels don't match, traffic can't reach pods
+  even if pods are healthy.

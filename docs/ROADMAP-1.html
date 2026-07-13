@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chaos Sensei — Build Roadmap</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #5a5a5a;
+  --border: #e2e2e2;
+  --code-bg: #f5f5f5;
+  --accent: #7c3aed;
+  --table-stripe: #fafafa;
+  --card-bg: #fbfbfd;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --fg: #e8e8ec;
+    --muted: #a0a0ab;
+    --border: #2e2e35;
+    --code-bg: #1f1f26;
+    --accent: #a78bfa;
+    --table-stripe: #1c1c22;
+    --card-bg: #1b1b21;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16161a; --fg: #e8e8ec; --muted: #a0a0ab; --border: #2e2e35;
+  --code-bg: #1f1f26; --accent: #a78bfa; --table-stripe: #1c1c22; --card-bg: #1b1b21;
+}
+:root[data-theme="light"] {
+  --bg: #ffffff; --fg: #1a1a1a; --muted: #5a5a5a; --border: #e2e2e2;
+  --code-bg: #f5f5f5; --accent: #7c3aed; --table-stripe: #fafafa; --card-bg: #fbfbfd;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+.wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 6rem;
+}
+h1, h2, h3, h4 {
+  line-height: 1.25;
+  font-weight: 650;
+}
+h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+h2 { font-size: 1.5rem; margin-top: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+h3 { font-size: 1.15rem; margin-top: 2rem; color: var(--accent); }
+p, li { color: var(--fg); }
+code {
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.88em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+pre code { background: none; padding: 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.2rem 0;
+  overflow-x: auto;
+  display: block;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.92rem;
+  vertical-align: top;
+}
+th { background: var(--card-bg); font-weight: 600; }
+tr:nth-child(even) td { background: var(--table-stripe); }
+blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 1rem;
+  color: var(--muted);
+}
+a { color: var(--accent); }
+hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+.mermaid {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+.badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+}
+ul.task-list { list-style: none; padding-left: 0.3rem; }
+input[type="checkbox"] { margin-right: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<span class="badge">Chaos Sensei · Build Roadmap</span>
+<h1 id="chaos-sensei-build-roadmap">Chaos Sensei — Build Roadmap</h1>
+<p><strong>Status as of:</strong> 2026-07-13
+<strong>Purpose:</strong> single source of truth for finishing Chaos Sensei — usable as a human reference <em>and</em> as a task spec an AI coding agent (Claude Code, Codex) can execute against directly.</p>
+<h2 id="how-to-use-this-document">How to use this document</h2>
+<p><strong>If you are a human:</strong> read top to bottom once, then use §4 (Phase Plan) as your working checklist. Each phase lists what to build, what it depends on, and how to know it's done.</p>
+<p><strong>If you are an AI agent (Claude/Codex) executing this doc:</strong> work through §4 phases <strong>in order</strong>. Do not skip a phase or jump ahead to a later one — every phase's "Depends on" line names the phases that must be <em>done</em> (not just started) first. Within a phase, tasks with no dependency on each other may be done in parallel; that's called out explicitly. After finishing each phase, run its "Definition of done" checks before moving on. If a phase's design conflicts with code you find in the repo, the repo's current state wins — update this doc rather than forcing code to match a stale plan.</p>
+<p><strong>Ground truth for "what does the finished product do":</strong> <code>chaos_sensei/</code> package in this repo + the original design doc at <code>project-template-devops/docs/ai/chaos_sensei_design.md</code>. This roadmap is the bridge between "design intent" and "current code."</p>
+<hr />
+<h2 id="1-one-sentence-description">1. One-sentence description</h2>
+<pre><code>scan repo → detect stack → choose safe scenario → inject failure
+→ observe symptoms → guide user → verify fix → rollback → write report
+</code></pre>
+<p>Chaos Sensei is a CLI "flight simulator" for on-call engineers: it reads an infra repo, quietly breaks something reversible in a non-prod environment, lets a human debug it like a real incident, and grades/reports the outcome.</p>
+<hr />
+<h2 id="2-where-were-starting-from-phase-0-already-built">2. Where we're starting from (Phase 0 — already built)</h2>
+<p>This is the actual state of the repo today, not the aspirational design. Total: ~1,700 lines of Python, one working end-to-end scenario.</p>
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>File</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI</td>
+<td><code>chaos_sensei/cli.py</code></td>
+<td>✅ all commands wired: <code>init scan plan start hint check rollback give-up report</code></td>
+</tr>
+<tr>
+<td>Config</td>
+<td><code>chaos_sensei/core/config.py</code></td>
+<td>✅ Pydantic models, safety policy, provider toggles</td>
+</tr>
+<tr>
+<td>Session</td>
+<td><code>chaos_sensei/core/session.py</code></td>
+<td>🟡 minimal — has id/scenario/snapshot/hint_count, no status enum or event timeline</td>
+</tr>
+<tr>
+<td>Engine</td>
+<td><code>chaos_sensei/core/engine.py</code></td>
+<td>🟡 works, but is a 416-line monolith doing planning + policy + rollback + report generation all in one class</td>
+</tr>
+<tr>
+<td>Provider contract</td>
+<td><code>chaos_sensei/providers/base.py</code></td>
+<td>✅ abstract interface: <code>detect discover list_scenarios preflight snapshot inject observe verify_fix rollback</code></td>
+</tr>
+<tr>
+<td>Kubernetes provider</td>
+<td><code>chaos_sensei/providers/kubernetes/provider.py</code></td>
+<td>🟡 <code>detect</code>/<code>discover</code>/<code>preflight</code>/<code>snapshot</code>/<code>rollback</code> work; scenarios are <strong>hard-coded Python dicts</strong>, not loaded from YAML; only 1 of 3 fault injectors implemented (<code>pod_crash</code> and <code>configmap_missing_key</code> raise <code>NotImplementedError</code>)</td>
+</tr>
+<tr>
+<td>Scenario content</td>
+<td><code>providers/kubernetes/scenarios/service_selector_mismatch.yaml</code></td>
+<td>✅ one complete, well-formed scenario — but the provider doesn't actually read this file</td>
+</tr>
+<tr>
+<td>kubectl wrapper</td>
+<td><code>chaos_sensei/tools/kubectl.py</code></td>
+<td>✅ safe subprocess wrapper, core verbs covered</td>
+</tr>
+<tr>
+<td>Tests</td>
+<td><code>tests/test_config.py</code></td>
+<td>🟡 config only, nothing else</td>
+</tr>
+<tr>
+<td>Docs</td>
+<td><code>docs/architecture.md</code>, <code>safety-model.md</code>, <code>getting-started.md</code></td>
+<td>🟡 exist, describe target state more than current state</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Not started at all:</strong> <code>scanners/</code>, <code>agents/</code>, <code>hooks/</code>, <code>templates/</code>, <code>data/</code>, <code>examples/</code>, <code>core/planner.py</code>, <code>core/policy.py</code>, <code>core/rollback.py</code>, <code>core/report.py</code>, <code>core/state.py</code>, <code>core/events.py</code>, every provider except Kubernetes.</p>
+<h3 id="current-architecture-as-built">Current architecture (as built)</h3>
+<div class="mermaid">
+flowchart TB
+    CLI["cli.py\n(typer commands)"] --> ENGINE
+
+    subgraph ENGINE["core/engine.py — does EVERYTHING"]
+        direction TB
+        E1[scan]
+        E2[plan]
+        E3[start: preflight → snapshot → inject]
+        E4[hint]
+        E5[check: verify_fix]
+        E6[rollback]
+        E7["report (f-string, no template)"]
+    end
+
+    ENGINE --> CONFIG["core/config.py\nPydantic safety policy"]
+    ENGINE --> SESSION["core/session.py\nsession.json on disk"]
+    ENGINE --> PROVIDER["providers/kubernetes/provider.py\nhard-coded scenario dicts"]
+    PROVIDER --> KUBECTL["tools/kubectl.py"]
+    KUBECTL --> CLUSTER[("live k8s cluster")]
+    PROVIDER -.reads but ignores.-> YAML["scenarios/*.yaml\n(1 file, unused by code)"]
+
+    style ENGINE fill:#3b3b3b,stroke:#999,color:#eee
+    style YAML stroke-dasharray: 5 5
+
+</div>
+<p>The monolith and the hard-coded scenarios are the two structural problems every later phase has to route around.</p>
+<hr />
+<h2 id="3-where-were-going-final-product-architecture">3. Where we're going (final product architecture)</h2>
+<div class="mermaid">
+flowchart TB
+    CLI["cli.py"] --> ENGINE["core/engine.py\n(thin orchestrator only)"]
+
+    ENGINE --> PLANNER["core/planner.py"]
+    ENGINE --> POLICY["core/policy.py"]
+    ENGINE --> ROLLBACK["core/rollback.py"]
+    ENGINE --> REPORT["core/report.py"]
+    ENGINE --> SESSION["core/session.py\n+ state.py + events.py"]
+
+    PLANNER --> SCANNERS["scanners/\nrepo_scanner, k8s_scanner,\nhelm_scanner, terraform_scanner, ..."]
+    PLANNER --> REGISTRY["data/provider_registry.yaml\n(dynamic provider loading)"]
+
+    PLANNER --> PROVIDERS
+    subgraph PROVIDERS["providers/ (pluggable, one per tech)"]
+        direction LR
+        K8S["kubernetes ✅"]
+        HELM["helm"]
+        TF["terraform"]
+        DC["docker-compose"]
+        CLOUD["aws/azure/gcp"]
+    end
+
+    K8S --> SCENARIOS_K8S["scenarios/*.yaml\n(loaded, not hard-coded)"]
+    PROVIDERS --> TOOLS["tools/\nkubectl, helm, terraform,\ngit, shell, llm"]
+    TOOLS --> REAL[("real infra")]
+
+    ENGINE -.optional reasoning layer.-> AGENTS
+    subgraph AGENTS["agents/ (explain, hint, judge)"]
+        direction LR
+        CART[repo_cartographer]
+        DESIGNER[scenario_designer]
+        GOV[safety_governor]
+        OBS[observer]
+        JUDGE[judge]
+        HINT[hint_master]
+        POST[postmortem_writer]
+    end
+
+    ENGINE --> HOOKS["hooks/\npre_scan, pre_experiment,\npost_injection, on_hint_request, ..."]
+    REPORT --> TEMPLATES["templates/report.md.j2"]
+
+    style AGENTS stroke-dasharray: 5 5
+
+</div>
+<p>Key structural shift from §2: the engine stops doing work itself and starts <strong>delegating</strong> — planning to <code>planner.py</code>, safety to <code>policy.py</code>, cleanup to <code>rollback.py</code>, writing to <code>report.py</code>. Everything else (scanners, more providers, agents, hooks) plugs into that stable core without needing to touch <code>engine.py</code> again.</p>
+<hr />
+<h2 id="4-phase-plan-dependency-ordered-build-sequence">4. Phase plan — dependency-ordered build sequence</h2>
+<h3 id="dependency-graph-which-phase-unblocks-which">Dependency graph (which phase unblocks which)</h3>
+<div class="mermaid">
+flowchart LR
+    P0["Phase 0\n✅ Done\nMVP skeleton"] --> P1
+    P1["Phase 1\nCore foundations\nevents/state/policy/planner/\nrollback/report + engine refactor"] --> P2
+    P1 --> P3
+    P2["Phase 2\nKubernetes provider\nhardening + YAML scenarios"] --> P6
+    P3["Phase 3\nScanners"] --> P4
+    P1 --> P4
+    P4["Phase 4\nDynamic provider registry"] --> P9
+    P1 --> P5
+    P5["Phase 5\nHooks"] --> P6
+    P2 --> P6
+    P3 --> P6
+    P6["Phase 6\nTest coverage milestone"] --> P7
+    P6 --> P8
+    P7["Phase 7\nTemplates + report polish"]
+    P8["Phase 8\nAgents layer"] --> P11
+    P3 --> P9
+    P9["Phase 9\nAdditional providers\n(Helm → Docker Compose → Terraform → Cloud)"] --> P10
+    P10["Phase 10\nExamples + docs expansion"] --> P11
+    P11["Phase 11\nv1.0 polish\nmulti-agent, marketplace, web UI"]
+
+</div>
+<p><strong>Reading this graph:</strong> Phases 2, 3, and 5 all only need Phase 1 finished — they can run in parallel with each other (by different people, or different agent sessions) as long as Phase 1's core contracts (session state machine, policy engine, provider base) are stable and merged first. Phase 6 is a gate: don't start Phase 7/8 until it's green.</p>
+<hr />
+<h3 id="phase-1-core-foundations-no-external-dependency-do-this-first">Phase 1 — Core foundations <em>(no external dependency — do this first)</em></h3>
+<p><strong>Depends on:</strong> Phase 0 (already satisfied)
+<strong>Goal:</strong> stop <code>engine.py</code> from being a monolith; give the app a real state machine.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>New file</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.1</td>
+<td><code>core/events.py</code></td>
+<td><code>EventType</code> enum — event names only, no logic</td>
+</tr>
+<tr>
+<td>1.2</td>
+<td><code>core/state.py</code></td>
+<td><code>SessionStatus</code> enum + <code>ALLOWED_TRANSITIONS</code> map</td>
+</tr>
+<tr>
+<td>1.3</td>
+<td>extend <code>core/session.py</code></td>
+<td>add <code>status</code>, <code>events: list[SessionEvent]</code>, <code>observations</code>, <code>add_event()</code>, <code>mark_*()</code> methods — depends on 1.1 + 1.2</td>
+</tr>
+<tr>
+<td>1.4</td>
+<td><code>core/policy.py</code></td>
+<td><code>PolicyEngine.evaluate(scenario, inventory) -&gt; {allowed, severity, requires_confirmation, reasons, blocked_by}</code> — reads <code>Config.safety</code> (already exists)</td>
+</tr>
+<tr>
+<td>1.5</td>
+<td><code>core/rollback.py</code></td>
+<td><code>RollbackManager.rollback()</code> / <code>.verify_rollback()</code> — calls <code>provider.rollback()</code>, updates session (needs 1.3)</td>
+</tr>
+<tr>
+<td>1.6</td>
+<td><code>core/report.py</code></td>
+<td><code>ReportBuilder.build_markdown()/.build_json()/.save()</code> — pulls report string out of <code>engine.py</code>, needs 1.3</td>
+</tr>
+<tr>
+<td>1.7</td>
+<td><code>core/planner.py</code></td>
+<td><code>ScenarioPlanner.detect_providers()/.build_plan()/.choose_scenario()</code> — needs 1.4</td>
+</tr>
+<tr>
+<td>1.8</td>
+<td>refactor <code>engine.py</code></td>
+<td>replace inline logic with calls to 1.1–1.7; keep public method names (<code>scan/plan/start/hint/check/rollback/give_up/report</code>) so <code>cli.py</code> doesn't change</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Definition of done:</strong>
+- <code>engine.py</code> under ~150 lines, contains no policy/report/rollback logic inline
+- <code>Session</code> round-trips through a real state machine; an illegal transition (e.g. <code>report()</code> before <code>injected</code>) raises, not silently succeeds
+- existing CLI commands behave identically to today from a user's point of view (regression check against the one working scenario)</p>
+<hr />
+<h3 id="phase-2-kubernetes-provider-hardening">Phase 2 — Kubernetes provider hardening</h3>
+<p><strong>Depends on:</strong> Phase 1 (needs <code>policy.py</code> contract + stable <code>Session</code>)
+<strong>Goal:</strong> make the <em>reference</em> provider actually match its own scenario YAML schema, and finish the two stubbed injectors.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2.1</td>
+<td><code>providers/base.py</code>: add <code>load_scenarios()</code>, <code>supports(scenario_id)</code>, <code>health_check()</code>, <code>verify_rollback()</code> as optional/default-implemented methods</td>
+</tr>
+<tr>
+<td>2.2</td>
+<td><code>KubernetesProvider</code>: replace hard-coded scenario dicts in <code>list_scenarios()</code> with a YAML loader (<code>_load_scenario_files()</code>) reading <code>providers/kubernetes/scenarios/*.yaml</code></td>
+</tr>
+<tr>
+<td>2.3</td>
+<td>implement <code>_inject_pod_crash()</code> (currently <code>NotImplementedError</code>)</td>
+</tr>
+<tr>
+<td>2.4</td>
+<td>implement <code>_inject_configmap_missing_key()</code> (currently <code>NotImplementedError</code>)</td>
+</tr>
+<tr>
+<td>2.5</td>
+<td>add scenario files: <code>pod_crash.yaml</code>, <code>configmap_missing_key.yaml</code>, <code>readiness_probe_failure.yaml</code> — same schema as <code>service_selector_mismatch.yaml</code></td>
+</tr>
+<tr>
+<td>2.6</td>
+<td><code>verify_fix()</code>: replace the single hard-coded selector/rollout check with logic driven by each scenario's <code>success_criteria</code> block</td>
+</tr>
+<tr>
+<td>2.7</td>
+<td><code>tools/kubectl.py</code>: add <code>get_deployments()</code>, <code>get_endpoints()</code>, <code>describe()</code>, <code>logs()</code>, <code>delete_pod()</code>, <code>wait()</code> (parallel-safe, no dependency on 2.1–2.6)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Definition of done:</strong> all 3 scenarios listed in <code>list_scenarios()</code> can be started, hinted, broken, fixed, verified, and rolled back end-to-end against a real cluster — not just the one that works today.</p>
+<hr />
+<h3 id="phase-3-scanners">Phase 3 — Scanners</h3>
+<p><strong>Depends on:</strong> Phase 1 (planner needs somewhere to plug scanners into)
+<strong>Goal:</strong> replace the crude "grep every yaml file for a substring" detection with real evidence-based scanning, reusable by the planner and later providers.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3.1</td>
+<td><code>scanners/repo_scanner.py</code> — orchestrator, walks repo, calls each specialized scanner, merges results</td>
+</tr>
+<tr>
+<td>3.2</td>
+<td><code>scanners/k8s_scanner.py</code> — detects <code>kind:</code>/<code>apiVersion:</code> patterns, collects namespaces/service names/manifest paths</td>
+</tr>
+<tr>
+<td>3.3</td>
+<td><code>scanners/helm_scanner.py</code>, <code>scanners/docker_scanner.py</code>, <code>scanners/terraform_scanner.py</code>, <code>scanners/terragrunt_scanner.py</code>, <code>scanners/ci_scanner.py</code> — same pattern, can be built in parallel with each other</td>
+</tr>
+<tr>
+<td>3.4</td>
+<td>wire <code>planner.py</code> (from Phase 1) to call <code>repo_scanner.scan()</code> instead of <code>provider.detect()</code>'s naive text search</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Definition of done:</strong> <code>chaos-sensei scan .</code> output includes evidence file paths per technology, not just a boolean; running it against <code>project-template-devops</code> correctly identifies Kubernetes, Helm, and Terraform all present.</p>
+<hr />
+<h3 id="phase-4-dynamic-provider-registry">Phase 4 — Dynamic provider registry</h3>
+<p><strong>Depends on:</strong> Phase 1 (engine refactor) + Phase 3 (scanners feed this)
+<strong>Goal:</strong> stop hard-coding <code>KubernetesProvider</code> inside <code>engine._init_providers()</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4.1</td>
+<td><code>data/provider_registry.yaml</code> — maps provider name → module path → class → <code>enabled_by_default</code></td>
+</tr>
+<tr>
+<td>4.2</td>
+<td>engine loads providers dynamically from the registry + <code>Config.providers.*.enabled</code> instead of one <code>if kubernetes.enabled:</code> block</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Definition of done:</strong> adding a new provider (Phase 9) requires zero edits to <code>engine.py</code> — only a new registry entry.</p>
+<hr />
+<h3 id="phase-5-hooks">Phase 5 — Hooks</h3>
+<p><strong>Depends on:</strong> Phase 1 (needs stable extension points in the refactored engine)
+<strong>Goal:</strong> optional extension points so future logic (audit logging, rate-limiting, adaptive hints) doesn't bloat the engine.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5.1</td>
+<td><code>hooks/pre_scan.py</code>, <code>pre_experiment.py</code>, <code>post_injection.py</code>, <code>on_user_attempt.py</code>, <code>on_hint_request.py</code>, <code>on_verify.py</code>, <code>on_give_up.py</code>, <code>on_rollback.py</code>, <code>post_report.py</code> — each is <code>def run(context: dict) -&gt; dict</code></td>
+</tr>
+<tr>
+<td>5.2</td>
+<td>engine calls the relevant hook at each lifecycle point (best done alongside 1.8, but functionally independent — can land after)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Definition of done:</strong> a hook can be added/removed by editing one file, with zero changes anywhere else, and a no-op hook file is provably a no-op (test asserts <code>run(x) == x</code> behavior for the default).</p>
+<hr />
+<h3 id="phase-6-test-coverage-milestone-gate">Phase 6 — Test coverage milestone <em>(gate)</em></h3>
+<p><strong>Depends on:</strong> Phase 1, 2, 3 all merged
+<strong>Goal:</strong> stop shipping on faith. This phase is a checkpoint, not new product surface — don't start Phase 7/8 until it's green.</p>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>tests/unit/test_state.py</code> — illegal transitions rejected</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>tests/unit/test_policy.py</code> — forbidden namespace/kind/keyword cases</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>tests/unit/test_session.py</code> — save/load round-trip, event log integrity</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>tests/unit/test_repo_scanner.py</code> — fixtures in <code>tests/fixtures/</code> (fake k8s/helm/terraform trees)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>tests/unit/test_k8s_provider.py</code> — all 3 scenarios inject/verify/rollback against a mocked <code>kubectl</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>tests/unit/test_report.py</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>tests/integration/test_full_flow.py</code> — start → hint → check → rollback against fake kubectl JSON fixtures</td>
+</tr>
+<tr>
+<td>8</td>
+<td>CLI smoke test</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Definition of done:</strong> <code>pytest -v --cov=chaos_sensei</code> covers <code>core/</code> and <code>providers/kubernetes/</code> at a level where a regression in state transitions or rollback would fail a test, not just be caught by a human later.</p>
+<hr />
+<h3 id="phase-7-templates-report-polish">Phase 7 — Templates &amp; report polish</h3>
+<p><strong>Depends on:</strong> Phase 1 (<code>report.py</code> exists) — cosmetic/output layer, not blocking anything else
+<strong>Goal:</strong> move the report out of an f-string into a real template, and give <code>init</code> a real starter config.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7.1</td>
+<td><code>templates/report.md.j2</code> — Jinja2, sections: session info, scenario, symptoms, hints used, checks, root cause, ideal path, rollback result, lessons learned, next drills</td>
+</tr>
+<tr>
+<td>7.2</td>
+<td><code>templates/chaos-sensei.yaml</code> — used by <code>chaos-sensei init</code> instead of <code>Config().to_yaml()</code> dumping defaults</td>
+</tr>
+<tr>
+<td>7.3</td>
+<td><code>templates/safety-policy.yaml</code>, <code>templates/scenario.yaml.j2</code></td>
+</tr>
+<tr>
+<td>7.4</td>
+<td><code>data/scenario_taxonomy.yaml</code> — categories, difficulty levels, blast-radius definitions (used by planner ranking, Phase 1)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-8-agents-layer">Phase 8 — Agents layer</h3>
+<p><strong>Depends on:</strong> Phase 1, 2, 3, 6 (needs a <em>stable, tested</em> core+provider to reason about — do not build this on shifting ground)
+<strong>Goal:</strong> add the reasoning/explanation layer the design doc describes. Every agent is <code>class X(BaseAgent): def run(context: dict) -&gt; dict</code>. LLM calls, if any, go through one wrapper (<code>tools/llm.py</code>) so the rest of the app never talks to a model API directly.</p>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Agent</th>
+<th>Depends on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8.1</td>
+<td><code>agents/repo_cartographer/</code></td>
+<td>Phase 3 scanner output</td>
+</tr>
+<tr>
+<td>8.2</td>
+<td><code>agents/scenario_designer/</code></td>
+<td>Phase 2 scenario schema</td>
+</tr>
+<tr>
+<td>8.3</td>
+<td><code>agents/safety_governor/</code></td>
+<td>Phase 1 <code>policy.py</code> output</td>
+</tr>
+<tr>
+<td>8.4</td>
+<td><code>agents/observer/</code></td>
+<td>Phase 2 <code>provider.observe()</code></td>
+</tr>
+<tr>
+<td>8.5</td>
+<td><code>agents/judge/</code></td>
+<td>Phase 2 <code>provider.verify_fix()</code></td>
+</tr>
+<tr>
+<td>8.6</td>
+<td><code>agents/hint_master/</code></td>
+<td>scenario YAML hints (already exist)</td>
+</tr>
+<tr>
+<td>8.7</td>
+<td><code>agents/postmortem_writer/</code></td>
+<td>Phase 7 report template</td>
+</tr>
+<tr>
+<td>8.8</td>
+<td><code>tools/llm.py</code></td>
+<td>only needed once an agent goes LLM-backed rather than pure data transform</td>
+</tr>
+</tbody>
+</table>
+<p>Each folder also gets a <code>SKILL.md</code> (purpose/inputs/outputs/rules/example) — see <code>docs/writing-providers.md</code>-style format.</p>
+<p><strong>Definition of done:</strong> engine can optionally call an agent at each lifecycle point without the mechanical (non-agent) path breaking if agents are disabled — agents are additive, not required.</p>
+<hr />
+<h3 id="phase-9-additional-providers">Phase 9 — Additional providers</h3>
+<p><strong>Depends on:</strong> Phase 2 (stable reference implementation to copy the pattern from) + Phase 3 (scanner support) + Phase 4 (registry so adding one is a config change)
+<strong>Build order:</strong> Helm → Docker Compose → Terraform (read-only) → Terragrunt → cloud (AWS/Azure/GCP) — matches the roadmap's own version sequence (v0.2 → v0.5) and increasing blast-radius risk.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9.1 Helm</td>
+<td>wraps <code>tools/helm.py</code> (list_releases, get_values, template, status — read-only first)</td>
+</tr>
+<tr>
+<td>9.2 Docker Compose</td>
+<td><code>tools/</code> needs a compose wrapper; scenarios: broken health-check, broken dependency link</td>
+</tr>
+<tr>
+<td>9.3 Terraform</td>
+<td><strong>read-only</strong> initially — <code>tools/terraform.py</code> (version, fmt_check, validate, plan_json); no <code>apply</code>/<code>destroy</code> until safety model is proven out</td>
+</tr>
+<tr>
+<td>9.4 Terragrunt</td>
+<td>thin layer over Terraform provider</td>
+</tr>
+<tr>
+<td>9.5 Cloud (AWS/Azure/GCP)</td>
+<td>highest blast radius — do last, needs its own explicit safety review pass through <code>policy.py</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-10-examples-docs-expansion">Phase 10 — Examples &amp; docs expansion</h3>
+<p><strong>Depends on:</strong> Phase 9 (needs real providers to build examples against) for the multi-tech examples; <code>k8s-helm-demo</code> can start as soon as Phase 2+9.1 land
+<strong>Goal:</strong> every provider needs a working fixture repo so a new user can <code>cd examples/X &amp;&amp; chaos-sensei scan .</code> and get a real result on day one.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10.1 <code>examples/k8s-helm-demo/</code></td>
+</tr>
+<tr>
+<td>10.2 <code>examples/docker-compose-demo/</code></td>
+</tr>
+<tr>
+<td>10.3 <code>examples/terraform-aws-demo/</code></td>
+</tr>
+<tr>
+<td>10.4 <code>examples/mixed-stack-demo/</code> (all of the above combined — proves repo-agnostic claim)</td>
+</tr>
+<tr>
+<td>10.5 expand <code>docs/architecture.md</code>, <code>docs/safety-model.md</code>, <code>docs/getting-started.md</code>; fill in the currently-placeholder <code>docs/writing-providers.md</code>, <code>docs/writing-scenarios.md</code>, <code>docs/report-format.md</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="phase-11-v10-polish">Phase 11 — v1.0 polish</h3>
+<p><strong>Depends on:</strong> everything above
+<strong>Goal:</strong> the roadmap items in the README that go beyond "does the core loop work" — multi-agent orchestration (agents actively collaborating, not just called in sequence), scenario marketplace, team training mode, CI/CD integration, web UI.</p>
+<p>This phase is intentionally left loose — by the time Phases 1–10 are done, priorities here should be re-derived from actual user feedback, not pre-committed today.</p>
+<hr />
+<h2 id="5-session-lifecycle-target-state-once-phase-1-lands">5. Session lifecycle (target state, once Phase 1 lands)</h2>
+<div class="mermaid">
+sequenceDiagram
+    actor U as User
+    participant CLI
+    participant Engine
+    participant Planner
+    participant Policy
+    participant Provider as K8s Provider
+    participant Cluster
+
+    U->>CLI: chaos-sensei scan .
+    CLI->>Engine: scan()
+    Engine->>Planner: detect_providers(repo)
+    Planner-->>Engine: [kubernetes]
+    Engine-->>U: detected technologies
+
+    U->>CLI: chaos-sensei plan --env staging
+    CLI->>Engine: plan()
+    Engine->>Planner: build_plan(repo, env)
+    Planner->>Provider: discover() + list_scenarios()
+    Provider->>Cluster: kubectl get deploy,svc,cm -A
+    Planner-->>Engine: candidate + blocked scenarios
+    Engine-->>U: scenario menu
+
+    U->>CLI: chaos-sensei start --scenario hidden
+    CLI->>Engine: start()
+    Engine->>Planner: choose_scenario()
+    Engine->>Policy: evaluate(scenario, inventory)
+    Policy-->>Engine: {allowed, requires_confirmation}
+    Engine->>Provider: snapshot(scenario)
+    Provider->>Cluster: kubectl get <target> -o json
+    Engine->>Provider: inject(scenario, snapshot)
+    Provider->>Cluster: kubectl patch <target>
+    Engine-->>U: symptoms visible, root cause hidden
+
+    loop investigation
+        U->>CLI: chaos-sensei hint
+        CLI->>Engine: hint()
+        Engine-->>U: next hint from scenario YAML
+        U->>Cluster: manual kubectl debugging
+    end
+
+    U->>CLI: chaos-sensei check
+    CLI->>Engine: check()
+    Engine->>Provider: verify_fix(scenario)
+    Provider->>Cluster: kubectl get <target>
+    Provider-->>Engine: {fixed: true/false}
+    Engine-->>U: pass/fail
+
+    U->>CLI: chaos-sensei rollback
+    CLI->>Engine: rollback()
+    Engine->>Provider: rollback(scenario, snapshot)
+    Provider->>Cluster: kubectl apply <original object>
+    Engine-->>U: restored
+
+    U->>CLI: chaos-sensei report
+    CLI->>Engine: report()
+    Engine-->>U: markdown report saved
+
+</div>
+<hr />
+<h2 id="6-normalized-contracts-keep-every-phase-consistent">6. Normalized contracts (keep every phase consistent)</h2>
+<p>Every provider method should return one of these shapes — this is what makes Phase 9 (new providers) cheap instead of a rewrite each time:</p>
+<pre><code class="language-python"># preflight()
+{&quot;allowed&quot;: True, &quot;reason&quot;: &quot;...&quot;, &quot;warnings&quot;: [], &quot;requires_confirmation&quot;: True}
+
+# snapshot() is provider-specific but always dict-shaped and JSON-serializable
+
+# inject()
+{&quot;injected&quot;: True, &quot;fault_type&quot;: &quot;...&quot;, &quot;target&quot;: {...}, &quot;details&quot;: &quot;...&quot;}
+
+# verify_fix()
+{&quot;fixed&quot;: False, &quot;details&quot;: &quot;...&quot;, &quot;observed_state&quot;: {...}}
+
+# rollback()
+{&quot;rolled_back&quot;: True, &quot;details&quot;: &quot;...&quot;, &quot;verified&quot;: True}
+</code></pre>
+<hr />
+<h2 id="7-reference-material">7. Reference material</h2>
+<ul>
+<li>Design intent: <code>project-template-devops/docs/ai/chaos_sensei_design.md</code></li>
+<li>Current package: <code>chaos_sensei/</code> in this repo</li>
+<li>Test target repo for the Kubernetes provider: <code>project-template-devops/platform/helm/charts/*-microservices</code> (5 microservice Helm charts with deployment/service/configmap manifests — good fixtures once Phase 9.1 Helm provider lands; usable today for the raw K8s provider if deployed via the repo's <code>kind</code> config)</li>
+</ul>
+<hr />
+<h2 id="8-working-checklist">8. Working checklist</h2>
+<ul>
+<li>[ ] Phase 1 — core foundations (events, state, policy, planner, rollback, report, engine refactor)</li>
+<li>[ ] Phase 2 — Kubernetes provider hardening (YAML-driven scenarios, 3/3 injectors)</li>
+<li>[ ] Phase 3 — scanners</li>
+<li>[ ] Phase 4 — dynamic provider registry</li>
+<li>[ ] Phase 5 — hooks</li>
+<li>[ ] Phase 6 — test coverage gate</li>
+<li>[ ] Phase 7 — templates + report polish</li>
+<li>[ ] Phase 8 — agents layer</li>
+<li>[ ] Phase 9 — additional providers (Helm → Docker Compose → Terraform → Terragrunt → Cloud)</li>
+<li>[ ] Phase 10 — examples + docs expansion</li>
+<li>[ ] Phase 11 — v1.0 polish</li>
+</ul>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: prefersDark ? "dark" : "default", securityLevel: "loose" });
+</script>
+</body>
+</html>
